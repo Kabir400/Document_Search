@@ -13,7 +13,7 @@ uploadDocument = TryCatch(async (req, res) => {
   if (!file) return next(new ApiError(400, "No file uploaded"));
 
   const text = await extractText(file);
-  const chunks = chunkText(text);
+  const chunks = await chunkText(text);
 
   const doc = await Document.create({
     userId,

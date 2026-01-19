@@ -1,74 +1,71 @@
 const { Pinecone } = require("@pinecone-database/pinecone");
-const axios = require("axios");
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { PineconeStore } = require("@langchain/pinecone");
+const { GoogleGenerativeAIEmbeddings } = require("@langchain/google-genai");
+const { Document } = require("@langchain/core/documents");
 
-//pinecone setup-
+// Pinecone setup
 const pinecone = new Pinecone({
   apiKey: process.env.PINECONE_API_KEY,
 });
 
-const index = pinecone.Index(process.env.PINECONE_INDEX);
+const pineconeIndex = pinecone.Index(process.env.PINECONE_INDEX);
 
-// Gemini setup
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-
-const embeddingModel = genAI.getGenerativeModel({
-  model: "text-embedding-004",
+// Embedding setup
+const embeddings = new GoogleGenerativeAIEmbeddings({
+  model: "text-embedding-004", 
+  apiKey: process.env.GEMINI_API_KEY,
 });
 
-//embeding function-
-async function embedText(text) {
-  const result = await embeddingModel.embedContent(text);
-  return result.embedding.values;
-}
-
-//embed and store-
+// Embed and store
 exports.embedAndStore = async ({ chunks, userId, documentId }) => {
-  const vectors = [];
-  const namespace = userId.toString();
-
-  for (let i = 0; i < chunks.length; i++) {
-    const embedding = await embedText(chunks[i]);
-
-    vectors.push({
-      id: `${documentId}_${i}`,
-      values: embedding,
+  const docs = chunks.map((chunk, i) => 
+    new Document({
+      pageContent: chunk,
       metadata: {
         userId: userId.toString(),
-        documentId,
+        documentId: documentId.toString(),
         chunkIndex: i,
-        text: chunks[i],
+        text: chunk, // Keeping for compatibility
       },
-    });
-  }
+    })
+  );
 
-  await index.namespace(namespace).upsert(vectors);
-};
-//query pinecone-
-exports.queryPinecone = async ({ userId, query }) => {
-  const embedding = await embedText(query);
+  const ids = chunks.map((_, i) => `${documentId}_${i}`);
 
-  const namespaceIndex = index.namespace(userId);
-
-  const result = await namespaceIndex.query({
-    vector: embedding,
-    topK: 5,
-    includeMetadata: true,
+  const vectorStore = await PineconeStore.fromExistingIndex(embeddings, {
+    pineconeIndex,
+    namespace: userId.toString(),
   });
 
-  if (!result.matches || result.matches.length === 0) return null;
+  await vectorStore.addDocuments(docs, { ids });
+};
+
+// Query Pinecone
+exports.queryPinecone = async ({ userId, query }) => {
+  const vectorStore = await PineconeStore.fromExistingIndex(embeddings, {
+    pineconeIndex,
+    namespace: userId.toString(),
+  });
+
+  const results = await vectorStore.similaritySearchWithScore(query, 5);
+
+  if (!results || results.length === 0) return null;
 
   return {
-    score: result.matches[0].score,
-    matches: result.matches,
+    matches: results.map(([doc, score]) => ({
+      score,
+      metadata: {
+        ...doc.metadata,
+        text: doc.pageContent,
+      },
+    })),
   };
 };
 
-//delete vectors-
+// Delete vectors (Keeping manual implementation for prefix deletion support)
 exports.deleteVectors = async (namespace, documentId) => {
-  const namespaceIndex = index.namespace(namespace);
+  const namespaceIndex = pineconeIndex.namespace(namespace);
 
-  // Fetch all vectors with IDs starting with documentId
   const listResponse = await namespaceIndex.listPaginated({
     prefix: `${documentId}_`,
   });

@@ -1,70 +1,73 @@
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { ChatGoogleGenerativeAI } = require("@langchain/google-genai");
+const { z } = require("zod");
+const { PromptTemplate } = require("@langchain/core/prompts");
+const { StringOutputParser } = require("@langchain/core/output_parsers");
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-
-const model = genAI.getGenerativeModel({
+const model = new ChatGoogleGenerativeAI({
   model: "gemini-2.5-flash-lite",
+  apiKey: process.env.GEMINI_API_KEY,
+  temperature: 0,
 });
 
-function extractJSON(text) {
-  try {
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) return null;
-    return JSON.parse(jsonMatch[0]);
-  } catch {
-    return null;
-  }
-}
+const decisionSchema = z.object({
+  action: z
+    .enum(["answer_directly", "search_documents", "search_web"])
+    .describe("The action to take based on the user's message"),
+  query: z
+    .string()
+    .optional()
+    .describe(
+      "The search query to use if the action is search_documents or search_web"
+    ),
+});
 
 const decideTool = async (userMessage) => {
-  const decisionPrompt = `
-You are an AI assistant.
+  try {
+    const structuredLlm = model.withStructuredOutput(decisionSchema);
 
-Available actions:
-1. answer_directly – if you can answer without external data
-2. search_documents – if the user's uploaded documents may help
-3. search_web – if fresh or external info is required
+    const systemPrompt = `You are an AI assistant.
+  
+  Available actions:
+  1. answer_directly – if you can answer without external data.
+  2. search_documents – if the user's uploaded documents may help.
+  3. search_web – if fresh or external info is required (e.g. current events, specific facts not in documents).
+  
+  User message:
+  {input}`;
 
-The action should be one of:
-answer_directly | search_documents | search_web
+    const prompt = PromptTemplate.fromTemplate(systemPrompt);
+    const chain = prompt.pipe(structuredLlm);
 
-Respond ONLY in valid JSON.
+    const result = await chain.invoke({ input: userMessage });
+    
+    // Ensure we have a valid result, fallback if needed
+    if (!result || !result.action) {
+        return { action: "answer_directly" };
+    }
 
-Example:
-{
-  "action": "search_documents",
-  "query": "refund policy"
-}
-
-User message:
-${userMessage}
-`;
-
-  const result = await model.generateContent(decisionPrompt);
-  const text = result.response.text();
-
-  const parsed = extractJSON(text);
-
-  if (!parsed || !parsed.action) {
+    return result;
+  } catch (error) {
+    console.error("Error in decideTool:", error);
     return { action: "answer_directly" };
   }
-
-  return parsed;
 };
 
 const generateFinalAnswer = async (context, userMessage) => {
-  const prompt = `
-Context:
-${context || "No external context used."}
+  const promptTemplate = `Context:
+{context}
 
 User Question:
-${userMessage}
+{userMessage}
 
-Answer clearly and accurately.
-`;
+Answer clearly and accurately.`;
 
-  const result = await model.generateContent(prompt);
-  return result.response.text();
+  const prompt = PromptTemplate.fromTemplate(promptTemplate);
+  const chain = prompt.pipe(model).pipe(new StringOutputParser());
+
+  return await chain.invoke({
+    context: context || "No external context used.",
+    userMessage: userMessage,
+  });
 };
 
 module.exports = { decideTool, generateFinalAnswer };

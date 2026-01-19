@@ -1,23 +1,14 @@
-const TOKEN_LIMIT = 700;
-const TOKEN_OVERLAP = 100;
+const { RecursiveCharacterTextSplitter } = require("@langchain/textsplitters");
+const ApiError = require("./ApiError.js");
 
-// Very simple tokenizer approximation (works well enough in practice)
-function tokenize(text) {
-  return text.split(/\s+/);
-}
+exports.chunkText = async (text) => {
+  if (!text) return [];
 
-exports.chunkText = (text) => {
-  const tokens = tokenize(text);
-  const chunks = [];
+  const splitter = new RecursiveCharacterTextSplitter({
+    chunkSize: 500,
+    chunkOverlap: 100,
+  });
 
-  let start = 0;
-  while (start < tokens.length) {
-    const end = start + TOKEN_LIMIT;
-    const chunk = tokens.slice(start, end).join(" ");
-    chunks.push(chunk);
-
-    start += TOKEN_LIMIT - TOKEN_OVERLAP;
-  }
-
-  return chunks;
+  const output = await splitter.createDocuments([text]);
+  return output.map((doc) => doc.pageContent);
 };
