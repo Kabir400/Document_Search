@@ -1,34 +1,76 @@
-# AI Learning Journey: RAG & Tool Calling 🚀
+# Enterprise Document RAG & Q&A Automation 🚀
 
-Hi there! 👋 This project is my personal playground for mastering advanced AI concepts. It is a full-stack application where you can login, upload your own documents to "train" an AI, and then ask questions to get answers based specifically on that content.
+This application is designed specifically for companies managing large volumes of documentation. It automates the process of answering frequently asked questions by allowing users to upload their own documents (PDFs, etc.) and "train" the AI. The system then uses Retrieval Augmented Generation (RAG) to provide accurate answers based on the uploaded content.
 
-The main motive of this project is to learn and experiment with modern AI technologies.
+If the answer cannot be found within the provided documents, the system seamlessly falls back to a **Web Search** (Google Search integration) to fetch real-time information, ensuring comprehensive responses every time.
 
-## 🧠 What I Learned
+## 🌟 Key Features
 
-Building this wasn't just about the code; it was about understanding the concepts. Here are the key takeaways:
+*   **RAG (Retrieval Augmented Generation)**: Connects an LLM to your custom data, enabling it to answer questions based on your specific documents.
+*   **Smart Fallback**: Integrated **Google Search/Web Search** tool allows the AI to fetch external information when the answer isn't in your knowledge base.
+*   **Structured Output**: AI responses are formatted in structured JSON for consistent application behavior.
+*   **Document Processing**: Efficiently handles document loading, text splitting, and embedding generation.
+*   **Stateful Workflows**: Advanced versions use LangGraph to manage conversation loops and complex reasoning steps.
 
-*   **RAG (Retrieval Augmented Generation)**: I learned how to connect an LLM to custom data so it knows things it wasn't originally trained on.
-*   **Google Search**: I integrated a **Google Search** tool, allowing the AI to fetch real-time information from the web when the answer isn't in the documents.
-*   **JSON Formatting**: Ensuring the AI outputs data in a structured way that my code can actually use.
-*   **LangChain Simplification**: I discovered how LangChain makes life easier by handling the heavy lifting, such as:
-    *   **Tool Calling**: It simplifies the process of binding tools (functions) to the LLM and parsing the outputs.
-    *   **Document Loaders**: Easily reading PDFs and other files.
-    *   **Text Splitters**: Smartly breaking down text so it fits into the context window.
-    *   **Embeddings & Querying**: Efficiently turning text into vectors for semantic search.
-*   **LangGraph**: This was a game-changer for managing workflows. Instead of writing messy `if-else` logic to handle conversation loops (like "search again" or "ask for clarity"), LangGraph let me build a stateful graph where the AI can cycle through steps intelligently.
+## 🛠️ Tech Stack
 
-## 🌿 Different Versions
+*   **Frontend**: Next.js, React, TailwindCSS
+*   **Backend**: Node.js, Express.js
+*   **AI/LLM**: Google Generative AI (Gemini)
+*   **Vector Database**: Pinecone
+*   **Search**: Tavily / Google Search API
+*   **Frameworks**: LangChain, LangGraph (in specific versions)
 
-To see the progression of my learning, I've saved different versions of the code in separate branches:
+## 🌿 Available Versions
 
-1.  **`without-langchain/langgraph`**: The raw, manual implementation. Good for understanding the basics!
-2.  **`with-langchain`**: The same app, but refactored to use LangChain's ecosystem.
-3.  **`with-langchainAndLanggraph`**: The advanced version adding LangGraph for stateful workflows.
+This project is available in three progressively advanced versions, each in its own branch:
 
-## 📸 A Look Inside
+1.  **`without-langchain/langgraph`**: A manual, raw implementation of the RAG pipeline. Best for understanding the core mechanics of RAG without abstraction layers.
+2.  **`with-langchain`**: Refactored to use the **LangChain** ecosystem. This simplifies document loading, text splitting, and tool calling.
+3.  **`with-langchainAndLanggraph`**: The most advanced version, incorporating **LangGraph**. This introduces stateful workflows, allowing the AI to cycle through steps (e.g., "search again" or "ask for clarity") intelligently.
 
-Here are some screenshots of the application in action:
+## � How to Set Up
+
+### Prerequisites
+Ensure you have the following installed/configured:
+*   Node.js & npm
+*   API Keys for:
+    *   Google Gemini (LLM)
+    *   Pinecone (Vector DB)
+    *   Tavily or Google Search (Search Tool)
+
+### 1. Backend Setup (Server)
+Navigate to the `server` directory and install dependencies:
+```bash
+cd server
+npm install
+```
+Create a `.env` file in the `server` directory with the following variables:
+```env
+MONGO_URI=mongodb://127.0.0.1:27017/test_agent
+TOKEN_SECRET_KEY=jgkajgjkajgkjdgkjdgkajkadjgkajgklajkljg
+PINECONE_API_KEY=your_pinecone_api_key
+PINECONE_INDEX=test
+TAVILY_API_KEY=your_tavily_api_key
+GEMINI_API_KEY=your_gemini_api_key
+```
+Start the server:
+```bash
+node index.js
+```
+
+### 2. Frontend Setup (Client)
+Navigate to the `client` directory and install dependencies:
+```bash
+cd client
+npm install
+```
+Start the development server:
+```bash
+npm run dev
+```
+
+## 📸 Application Screenshots
 
 **Login Page**
 ![Login Page](./screenshot/login.png)
